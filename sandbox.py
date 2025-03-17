@@ -1,5 +1,4 @@
 import requests
-import pandas as pd
 import time
 
 def calcular_dv(cnpj_parcial):
@@ -19,6 +18,7 @@ def calcular_dv(cnpj_parcial):
 
 def consulta_cnpj_base(cnpj_base):
     cnpj_completo = calcular_dv(cnpj_base)
+    print(cnpj_completo)
     url = f"https://api.cnpjs.dev/v1/{cnpj_completo}"
 
     try:
@@ -40,38 +40,28 @@ def consulta_cnpj_base(cnpj_base):
     except requests.exceptions.RequestException as e:
         return {"Erro": f"Erro de conexão: {e}"}
 
-def get_from_excel():
+def consultar_lista_cnpjs(cnpjs):
     try:
-        df = pd.read_excel('need2fixspcap.xlsx')
-        
-        if '[CNPJ8_CONTROLADOR]' not in df.columns:
-            print("Coluna '[CNPJ]' não encontrada.")
-            return
-
-        cnpjs = df['[CNPJ8_CONTROLADOR]'].dropna().astype(str).str.zfill(8).tolist()
-        
         resultados = []
         delay_segundos = 5.5
-        #limite_consultas = 10  # Limite de 10 consultas
 
-        for i, cnpj in enumerate(cnpjs):  # Limita a 10 primeiros CNPJs
+        for cnpj in cnpjs:
             resultado = consulta_cnpj_base(cnpj)
-            if resultado == r"{'Erro': 'Status 429: <html>\r\n<head><title>429 Too Many Requests</title></head>\r\n<body>\r\n<center><h1>429 Too Many Requests</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n'}":
-                time.sleep(delay_segundos + 5)
+            
+            # Verifica erro 429 e tenta novamente após o delay
+            if "429 Too Many Requests" in str(resultado):
+                print("Recebido erro 429. Aguardando para tentar novamente...")
+                time.sleep(delay_segundos)
                 resultado = consulta_cnpj_base(cnpj)
+
             print(resultado)
             resultados.append(resultado)
             time.sleep(delay_segundos)
-        
-        df_resultado = pd.DataFrame(resultados)
-        df_resultado.to_excel('fixedspcap.xlsx', index=False)
-        print("Consulta finalizada! Resultados salvos em 'fixedspcap.xlsx'.")
 
-    except FileNotFoundError:
-        print("Arquivo 'SPINT.xlsx' não encontrado.")
     except Exception as e:
         print(f"Ocorreu um erro: {e}")
 
-    #print(df)
+# Exemplo de lista de CNPJs (8 primeiros dígitos)
+cnpjs_exemplo = [""]
 
-get_from_excel()
+consultar_lista_cnpjs(cnpjs_exemplo)
